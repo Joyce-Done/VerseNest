@@ -1,0 +1,25 @@
+name: Verify VerseNest
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run test:accounts
+      - run: npm run test:onboarding
+      - run: node --import tsx scripts/test-lifetime.ts
+      - run: npm run test:interactions
+      - run: npm run test:pdf
+      - run: npm run test:pdf-render
+      - run: npm run test:template-transfer
+      - run: npm run build
+      - run: npm run test:pwa

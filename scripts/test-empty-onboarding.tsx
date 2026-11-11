@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import React from 'react';
+import {act,create} from 'react-test-renderer';
+import {FamilySetup,VerseForm} from '../src/App';
+import {FamilyCloudStorage} from '../src/cloudStorage';
+import {VerseNestStorage,InMemoryStorageAdapter,STORAGE_KEY} from '../src/storage';
+import type {VerseNestDatabase} from '../src/types';
+Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true,document:{activeElement:{focus(){}},body:{style:{overflow:''}},addEventListener(){},removeEventListener(){}}});
+class Local {data=new Map<string,string>();getItem(key:string){return this.data.get(key)??null;}setItem(key:string,value:string){this.data.set(key,value);}removeItem(key:string){this.data.delete(key);}}
+const device=new Local();const original=new VerseNestStorage(new InMemoryStorageAdapter(),{startEmpty:false});const ownerData=await original.loadDatabase();device.setItem(STORAGE_KEY,JSON.stringify(ownerData));
+const accounts=new Map<string,{data:VerseNestDatabase;revision:number}>();
+const send:typeof fetch=async(_url,init)=>{const id=new Headers(init?.headers).get('X-VerseNest-Account')!;const remote=accounts.get(id);if(init?.method==='PUT'){const input=JSON.parse(init.body as string);assert.equal(input.revision,remote?.revision??0);accounts.set(id,{data:input.data,revision:input.revision+1});return Response.json({revision:input.revision+1});}return Response.json({data:remote?.data??null,revision:remote?.revision??0});};
+const cloud=new FamilyCloudStorage(device as any,send);cloud.bindAccount('brand-new-parent');const store=new VerseNestStorage(cloud);let db=await store.loadDatabase();
+assert.deepEqual(db.children,[]);assert.deepEqual(db.verses,[]);assert.deepEqual(db.events,[]);assert.deepEqual(db.recitations,[]);assert.equal(db.activeChildId,null);
+let view:any;await act(async()=>{view=create(<FamilySetup db={db} onSave={value=>store.saveDatabase(value)}/>);});
+assert.equal(view.root.findAllByType('input').length,5);assert.ok(view.root.findAllByType('input').every((input:any)=>input.props.value===''),'All child-name fields begin blank');
+await act(async()=>view.root.findAllByType('input')[0].props.onChange({target:{value:'Their child'}}));
+await act(async()=>{await view.root.findByType('form').props.onSubmit({preventDefault(){}});});
+db=await store.loadDatabase();assert.deepEqual(db.children.map(child=>child.name),['Their child']);assert.deepEqual(db.verses,[],'Entering names never inserts sample verses');
+await act(async()=>view.unmount());await act(async()=>{view=create(<VerseForm child={db.children[0]} onSave={async()=>{}} onClose={()=>{}}/>);});
+assert.equal(view.root.findAllByType('select')[0].props.value,'','New verse book starts blank');assert.equal(view.root.findByProps({type:'number'}).props.value,'','New verse chapter starts blank');assert.equal(view.root.findByType('textarea').props.value,'','Scripture text starts blank');
+assert.ok(view.root.findAllByType('input').some((input:any)=>input.props.placeholder==='16 or 1-3'&&input.props.value===''),'New verse numbers start blank');
+await act(async()=>view.unmount());const reopened=new FamilyCloudStorage(device as any,send);reopened.bindAccount('brand-new-parent');const returning=await new VerseNestStorage(reopened).loadDatabase();assert.equal(returning.children[0].name,'Their child');assert.equal(returning.verses.length,0);
+assert.equal(device.getItem(STORAGE_KEY),JSON.stringify(ownerData),'Original family data stays untouched');
+console.log('PASS new parent signup starts with no children or verses, all five child-name fields are blank, saving names leaves verses empty, new verse reference/text fields are blank, returning parents retain saved names, and original family records remain untouched');

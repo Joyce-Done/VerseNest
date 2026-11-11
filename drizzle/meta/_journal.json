@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792372888393,
+      "tag": "0000_sparkling_chimera",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792432077713,
+      "tag": "0001_parallel_green_goblin",
+      "breakpoints": true
+    }
+  ]
+}

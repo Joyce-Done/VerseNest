@@ -1,0 +1,6 @@
+{
+  "name": "VerseNest",
+  "description": "Kids' memory verse tracker with canonical book organization, progress pipeline, and offline local storage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
